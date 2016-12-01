@@ -1,0 +1,524 @@
+apiVersion: v1
+kind: Template
+metadata:
+  creationTimestamp: null
+  name: odyc3
+labels:
+  createdBy: template-odyc3
+objects:
+- apiVersion: v1
+  kind: BuildConfig
+  metadata:
+    annotations:
+      openshift.io/generated-by: OpenShiftNewApp
+    creationTimestamp: null
+    labels:
+      app: ${APPLICATION_NAME}
+    name: ${APPLICATION_NAME}-ui
+  spec:
+    output:
+      to:
+        kind: ImageStreamTag
+        name: ${APPLICATION_NAME}-ui:latest
+    postCommit: {}
+    resources: {}
+    source:
+      git:
+        ref: ${ODYC3_UI_VERSION}
+        uri: https://www.forge.orange-labs.fr/plugins/git/devdayskmtdocker/odyc3-ui-run.git
+      secrets: null
+      sourceSecret:
+        name: orangeforge
+      type: Git
+    strategy:
+      dockerStrategy:
+        from:
+          kind: ImageStreamTag
+          name: nginx:latest
+      type: Docker
+    triggers:
+    - github:
+        secret: 2t6ZrOkWRWOBKuWKspNd
+      type: GitHub
+    - generic:
+        secret: nVZo9pkRGRNV-9b3oJEy
+      type: Generic
+    - type: ConfigChange
+    - imageChange: {}
+      type: ImageChange
+  status:
+    lastVersion: 0
+- apiVersion: v1
+  kind: BuildConfig
+  metadata:
+    annotations:
+      openshift.io/generated-by: OpenShiftWebConsole
+    creationTimestamp: null
+    labels:
+      app: ${APPLICATION_NAME}
+    name: ${APPLICATION_NAME}-ws
+  spec:
+    output:
+      to:
+        kind: ImageStreamTag
+        name: ${APPLICATION_NAME}-ws:latest
+    postCommit: {}
+    resources: {}
+    source:
+      contextDir: /dist
+      git:
+        ref: ${ODYC3_WS_VERSION}
+        uri: https://www.forge.orange-labs.fr/plugins/git/devdayskmtdocker/odyc3-ws-run.git
+      secrets: null
+      sourceSecret:
+        name: orangeforge
+      type: Git
+    strategy:
+      sourceStrategy:
+        env:
+        - name: MONGODB_ADDRESS
+          value: ${APPLICATION_NAME}-db
+        - name: MONGODB_USER
+          value:  ${MONGODB_USER}
+        - name: MONGODB_PASSWD
+          value:  ${MONGODB_PASSWD}
+        - name: MONGODB_DATABASE
+          value:  ${MONGODB_DATABASE}
+        - name: NPM_MIRROR
+          value: http://registry.npmjs.org
+        from:
+          kind: ImageStreamTag
+          name: nodejs:4
+          namespace: openshift
+      type: Source
+    triggers:
+    - github:
+        secret: 424059172090a036
+      type: GitHub
+    - generic:
+        secret: 8ebcdb4759db03d6
+      type: Generic
+    - imageChange: {}
+      type: ImageChange
+    - type: ConfigChange
+  status:
+    lastVersion: 0
+- apiVersion: v1
+  kind: DeploymentConfig
+  metadata:
+    creationTimestamp: null
+    generation: 2
+    labels:
+      app: ${APPLICATION_NAME}
+      template: mongodb-ephemeral-template
+    name: ${APPLICATION_NAME}-db
+  spec:
+    replicas: 1
+    selector:
+      name: ${APPLICATION_NAME}-db
+    strategy:
+      recreateParams:
+        timeoutSeconds: 600
+      resources: {}
+      type: Recreate
+    template:
+      metadata:
+        creationTimestamp: null
+        labels:
+          name: ${APPLICATION_NAME}-db
+      spec:
+        containers:
+        - env:
+          - name: MONGODB_USER
+            value: ${MONGODB_USER}
+          - name: MONGODB_PASSWORD
+            value: ${MONGODB_PASSWD}
+          - name: MONGODB_DATABASE
+            value:  ${MONGODB_DATABASE}
+          - name: MONGODB_ADMIN_PASSWORD
+            value:  ${MONGODB_ADMIN_PASSWD}
+          image: registry.access.redhat.com/rhscl/mongodb-32-rhel7@sha256:e5b2a229b8376ca128c552b36534be349b932c791273c739949f67b57b8d4ceb
+          imagePullPolicy: IfNotPresent
+          livenessProbe:
+            failureThreshold: 3
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            successThreshold: 1
+            tcpSocket:
+              port: 27017
+            timeoutSeconds: 1
+          name: mongodb
+          ports:
+          - containerPort: 27017
+            protocol: TCP
+          readinessProbe:
+            exec:
+              command:
+              - /bin/sh
+              - -i
+              - -c
+              - mongo 127.0.0.1:27017/$MONGODB_DATABASE -u $MONGODB_USER -p $MONGODB_PASSWORD
+                --eval="quit()"
+            failureThreshold: 3
+            initialDelaySeconds: 3
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 1
+          resources:
+            limits:
+              memory: 512Mi
+          securityContext:
+            capabilities: {}
+            privileged: false
+          terminationMessagePath: /dev/termination-log
+        dnsPolicy: ClusterFirst
+        restartPolicy: Always
+        securityContext: {}
+        terminationGracePeriodSeconds: 30
+    test: false
+    triggers:
+    - imageChangeParams:
+        automatic: true
+        containerNames:
+        - mongodb
+        from:
+          kind: ImageStreamTag
+          name: mongodb:3.2
+          namespace: openshift
+      type: ImageChange
+    - type: ConfigChange
+  status: {}
+- apiVersion: v1
+  kind: DeploymentConfig
+  metadata:
+    annotations:
+      openshift.io/generated-by: OpenShiftNewApp
+    creationTimestamp: null
+    generation: 4
+    labels:
+      app: ${APPLICATION_NAME}
+    name: ${APPLICATION_NAME}-ui
+  spec:
+    replicas: 1
+    selector:
+      app: ${APPLICATION_NAME}-ui
+      deploymentconfig: ${APPLICATION_NAME}-ui
+    strategy:
+      resources: {}
+      rollingParams:
+        intervalSeconds: 1
+        maxSurge: 25%
+        maxUnavailable: 25%
+        timeoutSeconds: 600
+        updatePeriodSeconds: 1
+      type: Rolling
+    template:
+      metadata:
+        annotations:
+          openshift.io/container.odyc3-ui.image.entrypoint: '["nginx","-g","daemon
+            off;"]'
+          openshift.io/generated-by: OpenShiftNewApp
+        creationTimestamp: null
+        labels:
+          app: ${APPLICATION_NAME}-ui
+          deploymentconfig: ${APPLICATION_NAME}-ui
+      spec:
+        containers:
+        - image: ${APPLICATION_NAME}-ui
+          imagePullPolicy: Always
+          name: ${APPLICATION_NAME}-ui
+          ports:
+          - containerPort: 8080
+            protocol: TCP
+          readinessProbe:
+            failureThreshold: 3
+            httpGet:
+              path: /index.html
+              port: 8080
+              scheme: HTTP
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 10
+          resources: {}
+          terminationMessagePath: /dev/termination-log
+        dnsPolicy: ClusterFirst
+        restartPolicy: Always
+        securityContext: {}
+        terminationGracePeriodSeconds: 30
+    test: false
+    triggers:
+    - type: ConfigChange
+    - imageChangeParams:
+        automatic: true
+        containerNames:
+        - ${APPLICATION_NAME}-ui
+        from:
+          kind: ImageStreamTag
+          name: ${APPLICATION_NAME}-ui:latest
+      type: ImageChange
+  status: {}
+- apiVersion: v1
+  kind: DeploymentConfig
+  metadata:
+    annotations:
+      openshift.io/generated-by: OpenShiftWebConsole
+    creationTimestamp: null
+    generation: 12
+    labels:
+      app: ${APPLICATION_NAME}
+    name: ${APPLICATION_NAME}-ws
+  spec:
+    replicas: 1
+    selector:
+      deploymentconfig: ${APPLICATION_NAME}-ws
+    strategy:
+      resources: {}
+      rollingParams:
+        intervalSeconds: 1
+        maxSurge: 25%
+        maxUnavailable: 25%
+        timeoutSeconds: 600
+        updatePeriodSeconds: 1
+      type: Rolling
+    template:
+      metadata:
+        creationTimestamp: null
+        labels:
+          app: ${APPLICATION_NAME}-ws
+          deploymentconfig: ${APPLICATION_NAME}-ws
+      spec:
+        containers:
+        - image: ${APPLICATION_NAME}-ws
+          imagePullPolicy: Always
+          name: ${APPLICATION_NAME}-ws
+          ports:
+          - containerPort: 8080
+            protocol: TCP
+          readinessProbe:
+            failureThreshold: 3
+            httpGet:
+              path: /api/status
+              port: 8080
+              scheme: HTTP
+            initialDelaySeconds: 1
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 10
+          resources: {}
+          terminationMessagePath: /dev/termination-log
+        dnsPolicy: ClusterFirst
+        restartPolicy: Always
+        securityContext: {}
+        terminationGracePeriodSeconds: 30
+    test: false
+    triggers:
+    - imageChangeParams:
+        automatic: true
+        containerNames:
+        - ${APPLICATION_NAME}-ws
+        from:
+          kind: ImageStreamTag
+          name: ${APPLICATION_NAME}-ws:latest
+      type: ImageChange
+    - type: ConfigChange
+  status: {}
+- apiVersion: v1
+  kind: ImageStream
+  metadata:
+    annotations:
+      openshift.io/generated-by: OpenShiftNewApp
+      openshift.io/image.dockerRepositoryCheck: 2016-10-06T12:37:03Z
+    creationTimestamp: null
+    generation: 2
+    labels:
+      app: ${APPLICATION_NAME}
+    name: nginx
+  spec:
+    tags:
+    - annotations:
+        openshift.io/imported-from: nginx
+      from:
+        kind: DockerImage
+        name: nginx:latest
+      generation: 2
+      importPolicy: {}
+      name: latest
+  status:
+    dockerImageRepository: ""
+- apiVersion: v1
+  kind: ImageStream
+  metadata:
+    annotations:
+      openshift.io/generated-by: OpenShiftNewApp
+    creationTimestamp: null
+    generation: 1
+    labels:
+      app: ${APPLICATION_NAME}
+    name: ${APPLICATION_NAME}-ui
+  spec:
+    tags:
+    - annotations: null
+      from:
+        kind: DockerImage
+        name: ${APPLICATION_NAME}-ui:latest
+      generation: null
+      importPolicy: {}
+      name: latest
+  status:
+    dockerImageRepository: ""
+- apiVersion: v1
+  kind: ImageStream
+  metadata:
+    annotations:
+      openshift.io/generated-by: OpenShiftWebConsole
+    creationTimestamp: null
+    generation: 1
+    labels:
+      app: ${APPLICATION_NAME}
+    name: ${APPLICATION_NAME}-ws
+  spec:
+    tags:
+    - annotations: null
+      from:
+        kind: DockerImage
+        name: ${APPLICATION_NAME}-ws:latest
+      generation: null
+      importPolicy: {}
+      name: latest
+  status:
+    dockerImageRepository: ""
+- apiVersion: v1
+  kind: Service
+  metadata:
+    creationTimestamp: null
+    labels:
+      app: ${APPLICATION_NAME}
+      template: mongodb-ephemeral-template
+    name: ${APPLICATION_NAME}-db
+  spec:
+    ports:
+    - name: mongo
+      port: 27017
+      protocol: TCP
+      targetPort: 27017
+    selector:
+      name: ${APPLICATION_NAME}-db
+    sessionAffinity: None
+    type: ClusterIP
+  status:
+    loadBalancer: {}
+- apiVersion: v1
+  kind: Service
+  metadata:
+    annotations:
+      openshift.io/generated-by: OpenShiftNewApp
+      service.alpha.openshift.io/dependencies: '[{"name":"${APPLICATION_NAME}-ws","namespace":"","kind":"Service"},{"name":"${APPLICATION_NAME}-db","namespace":"","kind":"Ser
+vice"}]'
+    creationTimestamp: null
+    labels:
+      app: ${APPLICATION_NAME}
+    name: ${APPLICATION_NAME}-ui
+  spec:
+    ports:
+    - name: 8080-tcp
+      port: 8080
+      protocol: TCP
+      targetPort: 8080
+    selector:
+      app: ${APPLICATION_NAME}-ui
+      deploymentconfig: ${APPLICATION_NAME}-ui
+    sessionAffinity: None
+    type: ClusterIP
+  status:
+    loadBalancer: {}
+- apiVersion: v1
+  kind: Service
+  metadata:
+    annotations:
+      openshift.io/generated-by: OpenShiftWebConsole
+    creationTimestamp: null
+    labels:
+      app: ${APPLICATION_NAME}
+    name: ${APPLICATION_NAME}-ws
+  spec:
+    ports:
+    - name: 8080-tcp
+      port: 8080
+      protocol: TCP
+      targetPort: 8080
+    selector:
+      deploymentconfig: ${APPLICATION_NAME}-ws
+    sessionAffinity: None
+    type: ClusterIP
+  status:
+    loadBalancer: {}
+- apiVersion: v1
+  data:
+    .gitconfig: W2h0dHBdDQogICAgICAgIHNzbFZlcmlmeT1mYWxzZQ==
+  kind: Secret
+  metadata:
+    creationTimestamp: null
+    name: orangeforge
+  type: Opaque
+- apiVersion: v1
+  kind: Route
+  metadata:
+    creationTimestamp: null
+    labels:
+      app: ${APPLICATION_NAME}
+    name: ${APPLICATION_NAME}-ui
+  spec:
+    host: ${ODYC3_BASEURL}.kmt.orange-labs.fr
+    path: /
+    port:
+      targetPort: 8080-tcp
+    to:
+      kind: Service
+      name: ${APPLICATION_NAME}-ui
+- apiVersion: v1
+  kind: Route
+  metadata:
+    annotations:
+      openshift.io/generated-by: OpenShiftWebConsole
+    creationTimestamp: null
+    labels:
+      app: ${APPLICATION_NAME}
+    name: ${APPLICATION_NAME}-ws
+  spec:
+    host: ${ODYC3_BASEURL}.kmt.orange-labs.fr
+    path: /api
+    port:
+      targetPort: 8080-tcp
+    to:
+      kind: Service
+      name: ${APPLICATION_NAME}-ws
+
+parameters:
+  - name: APPLICATION_NAME
+    description: The name of the application use to create the project
+    value: odyc3
+  - name: ODYC3_BASEURL
+    description: The hostname of teh DNS exposition on domain .kmt.orange-labs.fr
+    value: odyc3
+  - name: ODYC3_WS_VERSION
+    description: The version of odyc3-ws to deploy
+    value: 1.0.0
+  - name: ODYC3_UI_VERSION
+    description: The version of odyc3-ui to deploy
+    value: 1.0.0
+  - name: MONGODB_USER
+    description: the user for Odyc3-db
+    generate:    expression
+    from:      user[a-zA-Z0-9]{6}
+  - name: MONGODB_DATABASE
+    description: the user for Odyc3-db
+    value: odyc3
+  - name: MONGODB_PASSWD
+    description: the password  for Odyc3-db
+    generate:    expression
+    from:      user[a-zA-Z0-9]{9}
+  - name: MONGODB_ADMIN_PASSWD
+    description: the admin password  for Odyc3-db
+    generate:    expression
+    from:      user[a-zA-Z0-9]{9}

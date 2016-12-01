@@ -1,0 +1,518 @@
+apiVersion: v1
+kind: Template
+metadata:
+  creationTimestamp: null
+  name: odyc3
+objects:
+- apiVersion: v1
+  kind: BuildConfig
+  metadata:
+    annotations:
+      openshift.io/generated-by: OpenShiftNewApp
+    creationTimestamp: null
+    labels:
+      app: odyc3
+      createdBy: template-odyc3
+    name: odyc3-ui
+  spec:
+    output:
+      to:
+        kind: ImageStreamTag
+        name: odyc3-ui:latest
+    postCommit: {}
+    resources: {}
+    source:
+      git:
+        ref: 1.0.0
+        uri: https://www.forge.orange-labs.fr/plugins/git/devdayskmtdocker/odyc3-ui-run.git
+      secrets: null
+      sourceSecret:
+        name: orangeforge
+      type: Git
+    strategy:
+      dockerStrategy:
+        from:
+          kind: ImageStreamTag
+          name: nginx:latest
+      type: Docker
+    triggers:
+    - github:
+        secret: 2t6ZrOkWRWOBKuWKspNd
+      type: GitHub
+    - generic:
+        secret: nVZo9pkRGRNV-9b3oJEy
+      type: Generic
+    - type: ConfigChange
+    - imageChange: {}
+      type: ImageChange
+  status:
+    lastVersion: 0
+- apiVersion: v1
+  kind: BuildConfig
+  metadata:
+    annotations:
+      openshift.io/generated-by: OpenShiftWebConsole
+    creationTimestamp: null
+    labels:
+      app: odyc3
+      createdBy: template-odyc3
+    name: odyc3-ws
+  spec:
+    output:
+      to:
+        kind: ImageStreamTag
+        name: odyc3-ws:latest
+    postCommit: {}
+    resources: {}
+    source:
+      contextDir: /dist
+      git:
+        ref: 1.0.0
+        uri: https://www.forge.orange-labs.fr/plugins/git/devdayskmtdocker/odyc3-ws-run.git
+      secrets: null
+      sourceSecret:
+        name: orangeforge
+      type: Git
+    strategy:
+      sourceStrategy:
+        env:
+        - name: MONGODB_ADDRESS
+          value: odyc3-db
+        - name: MONGODB_USER
+          value: userAlCJkQ
+        - name: MONGODB_PASSWD
+          value: uservxK3bs42S
+        - name: MONGODB_DATABASE
+          value: odyc3
+        - name: NPM_MIRROR
+          value: http://registry.npmjs.org
+        from:
+          kind: ImageStreamTag
+          name: nodejs:4
+          namespace: openshift
+      type: Source
+    triggers:
+    - github:
+        secret: 424059172090a036
+      type: GitHub
+    - generic:
+        secret: 8ebcdb4759db03d6
+      type: Generic
+    - imageChange: {}
+      type: ImageChange
+    - type: ConfigChange
+  status:
+    lastVersion: 0
+- apiVersion: v1
+  kind: DeploymentConfig
+  metadata:
+    creationTimestamp: null
+    generation: 2
+    labels:
+      app: odyc3
+      createdBy: template-odyc3
+      template: mongodb-ephemeral-template
+    name: odyc3-db
+  spec:
+    replicas: 1
+    selector:
+      name: odyc3-db
+    strategy:
+      recreateParams:
+        timeoutSeconds: 600
+      resources: {}
+      type: Recreate
+    template:
+      metadata:
+        creationTimestamp: null
+        labels:
+          name: odyc3-db
+      spec:
+        containers:
+        - env:
+          - name: MONGODB_USER
+            value: userAlCJkQ
+          - name: MONGODB_PASSWORD
+            value: uservxK3bs42S
+          - name: MONGODB_DATABASE
+            value: odyc3
+          - name: MONGODB_ADMIN_PASSWORD
+            value: userpE4Gc4OiN
+          image: registry.access.redhat.com/rhscl/mongodb-32-rhel7@sha256:e5b2a229b8376ca128c552b36534be349b932c791273c739949f67b57b8d4ceb
+          imagePullPolicy: IfNotPresent
+          livenessProbe:
+            failureThreshold: 3
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            successThreshold: 1
+            tcpSocket:
+              port: 27017
+            timeoutSeconds: 1
+          name: mongodb
+          ports:
+          - containerPort: 27017
+            protocol: TCP
+          readinessProbe:
+            exec:
+              command:
+              - /bin/sh
+              - -i
+              - -c
+              - mongo 127.0.0.1:27017/$MONGODB_DATABASE -u $MONGODB_USER -p $MONGODB_PASSWORD
+                --eval="quit()"
+            failureThreshold: 3
+            initialDelaySeconds: 3
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 1
+          resources:
+            limits:
+              memory: 512Mi
+          securityContext:
+            capabilities: {}
+            privileged: false
+          terminationMessagePath: /dev/termination-log
+        dnsPolicy: ClusterFirst
+        restartPolicy: Always
+        securityContext: {}
+        terminationGracePeriodSeconds: 30
+    test: false
+    triggers:
+    - imageChangeParams:
+        automatic: true
+        containerNames:
+        - mongodb
+        from:
+          kind: ImageStreamTag
+          name: mongodb:3.2
+          namespace: openshift
+      type: ImageChange
+    - type: ConfigChange
+  status: {}
+- apiVersion: v1
+  kind: DeploymentConfig
+  metadata:
+    annotations:
+      openshift.io/generated-by: OpenShiftNewApp
+    creationTimestamp: null
+    generation: 2
+    labels:
+      app: odyc3
+      createdBy: template-odyc3
+    name: odyc3-ui
+  spec:
+    replicas: 1
+    selector:
+      app: odyc3-ui
+      deploymentconfig: odyc3-ui
+    strategy:
+      resources: {}
+      rollingParams:
+        intervalSeconds: 1
+        maxSurge: 25%
+        maxUnavailable: 25%
+        timeoutSeconds: 600
+        updatePeriodSeconds: 1
+      type: Rolling
+    template:
+      metadata:
+        annotations:
+          openshift.io/container.odyc3-ui.image.entrypoint: '["nginx","-g","daemon
+            off;"]'
+          openshift.io/generated-by: OpenShiftNewApp
+        creationTimestamp: null
+        labels:
+          app: odyc3-ui
+          deploymentconfig: odyc3-ui
+      spec:
+        containers:
+        - image: 172.30.34.149:5000/odyc3-qualif/odyc3-ui@sha256:a8bae9073c30033e70356bb413a613774b62af2e9b95ce45cf2377398c4f839f
+          imagePullPolicy: Always
+          name: odyc3-ui
+          ports:
+          - containerPort: 8080
+            protocol: TCP
+          readinessProbe:
+            failureThreshold: 3
+            httpGet:
+              path: /index.html
+              port: 8080
+              scheme: HTTP
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 10
+          resources: {}
+          terminationMessagePath: /dev/termination-log
+        dnsPolicy: ClusterFirst
+        restartPolicy: Always
+        securityContext: {}
+        terminationGracePeriodSeconds: 30
+    test: false
+    triggers:
+    - type: ConfigChange
+    - imageChangeParams:
+        automatic: true
+        containerNames:
+        - odyc3-ui
+        from:
+          kind: ImageStreamTag
+          name: odyc3-ui:latest
+          namespace: odyc3-qualif
+      type: ImageChange
+  status: {}
+- apiVersion: v1
+  kind: DeploymentConfig
+  metadata:
+    annotations:
+      openshift.io/generated-by: OpenShiftWebConsole
+    creationTimestamp: null
+    generation: 2
+    labels:
+      app: odyc3
+      createdBy: template-odyc3
+    name: odyc3-ws
+  spec:
+    replicas: 1
+    selector:
+      deploymentconfig: odyc3-ws
+    strategy:
+      resources: {}
+      rollingParams:
+        intervalSeconds: 1
+        maxSurge: 25%
+        maxUnavailable: 25%
+        timeoutSeconds: 600
+        updatePeriodSeconds: 1
+      type: Rolling
+    template:
+      metadata:
+        creationTimestamp: null
+        labels:
+          app: odyc3-ws
+          deploymentconfig: odyc3-ws
+      spec:
+        containers:
+        - image: 172.30.34.149:5000/odyc3-qualif/odyc3-ws@sha256:c6f3504166c2afd4f60bd38759ba3161fd7b566fec94a3767060acd96c4adee5
+          imagePullPolicy: Always
+          name: odyc3-ws
+          ports:
+          - containerPort: 8080
+            protocol: TCP
+          readinessProbe:
+            failureThreshold: 3
+            httpGet:
+              path: /api/status
+              port: 8080
+              scheme: HTTP
+            initialDelaySeconds: 1
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 10
+          resources: {}
+          terminationMessagePath: /dev/termination-log
+        dnsPolicy: ClusterFirst
+        restartPolicy: Always
+        securityContext: {}
+        terminationGracePeriodSeconds: 30
+    test: false
+    triggers:
+    - imageChangeParams:
+        automatic: true
+        containerNames:
+        - odyc3-ws
+        from:
+          kind: ImageStreamTag
+          name: odyc3-ws:latest
+          namespace: odyc3-qualif
+      type: ImageChange
+    - type: ConfigChange
+  status: {}
+- apiVersion: v1
+  kind: ImageStream
+  metadata:
+    annotations:
+      openshift.io/generated-by: OpenShiftNewApp
+      openshift.io/image.dockerRepositoryCheck: 2016-10-14T12:55:44Z
+    creationTimestamp: null
+    generation: 2
+    labels:
+      app: odyc3
+      createdBy: template-odyc3
+    name: nginx
+  spec:
+    tags:
+    - annotations:
+        openshift.io/imported-from: nginx
+      from:
+        kind: DockerImage
+        name: 172.30.34.149:5000/odyc3-qualif/nginx:latest
+      generation: 2
+      importPolicy: {}
+      name: latest
+  status:
+    dockerImageRepository: ""
+- apiVersion: v1
+  kind: ImageStream
+  metadata:
+    annotations:
+      openshift.io/generated-by: OpenShiftNewApp
+      openshift.io/image.dockerRepositoryCheck: 2016-10-14T12:55:45Z
+    creationTimestamp: null
+    generation: 2
+    labels:
+      app: odyc3
+      createdBy: template-odyc3
+    name: odyc3-ui
+  spec:
+    tags:
+    - annotations: null
+      from:
+        kind: DockerImage
+        name: 172.30.34.149:5000/odyc3-qualif/odyc3-ui:latest
+      generation: 2
+      importPolicy: {}
+      name: latest
+  status:
+    dockerImageRepository: ""
+- apiVersion: v1
+  kind: ImageStream
+  metadata:
+    annotations:
+      openshift.io/generated-by: OpenShiftWebConsole
+      openshift.io/image.dockerRepositoryCheck: 2016-10-14T12:55:47Z
+    creationTimestamp: null
+    generation: 2
+    labels:
+      app: odyc3
+      createdBy: template-odyc3
+    name: odyc3-ws
+  spec:
+    tags:
+    - annotations: null
+      from:
+        kind: DockerImage
+        name: 172.30.34.149:5000/odyc3-qualif/odyc3-ws:latest
+      generation: 2
+      importPolicy: {}
+      name: latest
+  status:
+    dockerImageRepository: ""
+- apiVersion: v1
+  kind: Service
+  metadata:
+    creationTimestamp: null
+    labels:
+      app: odyc3
+      createdBy: template-odyc3
+      template: mongodb-ephemeral-template
+    name: odyc3-db
+  spec:
+    ports:
+    - name: mongo
+      port: 27017
+      protocol: TCP
+      targetPort: 27017
+    selector:
+      name: odyc3-db
+    sessionAffinity: None
+    type: ClusterIP
+  status:
+    loadBalancer: {}
+- apiVersion: v1
+  kind: Service
+  metadata:
+    annotations:
+      openshift.io/generated-by: OpenShiftNewApp
+      service.alpha.openshift.io/dependencies: '[{"name":"odyc3-ws","name space":"","kind":"Service"},{"name":"odyc3-db","namespace":"","kind":"Ser
+        vice"},{"name":"odyc3-db","namespace":"","kind":"Service"}]'
+    creationTimestamp: null
+    labels:
+      app: odyc3
+      createdBy: template-odyc3
+    name: odyc3-ui
+  spec:
+    ports:
+    - name: 8080-tcp
+      port: 8080
+      protocol: TCP
+      targetPort: 8080
+    selector:
+      app: odyc3-ui
+      deploymentconfig: odyc3-ui
+    sessionAffinity: None
+    type: ClusterIP
+  status:
+    loadBalancer: {}
+- apiVersion: v1
+  kind: Service
+  metadata:
+    annotations:
+      openshift.io/generated-by: OpenShiftWebConsole
+    creationTimestamp: null
+    labels:
+      app: odyc3
+      createdBy: template-odyc3
+    name: odyc3-ws
+  spec:
+    ports:
+    - name: 8080-tcp
+      port: 8080
+      protocol: TCP
+      targetPort: 8080
+    selector:
+      deploymentconfig: odyc3-ws
+    sessionAffinity: None
+    type: ClusterIP
+  status:
+    loadBalancer: {}
+- apiVersion: v1
+  kind: Route
+  metadata:
+    creationTimestamp: null
+    labels:
+      app: odyc3
+      createdBy: template-odyc3
+    name: odyc3-ui
+  spec:
+    host: odyc3-qualif.kmt.orange-labs.fr
+    path: /
+    port:
+      targetPort: 8080-tcp
+    to:
+      kind: Service
+      name: odyc3-ui
+  status:
+    ingress:
+    - conditions:
+      - lastTransitionTime: 2016-10-14T12:56:48Z
+        status: "True"
+        type: Admitted
+      host: odyc3-qualif.kmt.orange-labs.fr
+      routerName: router
+- apiVersion: v1
+  kind: Route
+  metadata:
+    annotations:
+      openshift.io/generated-by: OpenShiftWebConsole
+    creationTimestamp: null
+    labels:
+      app: odyc3
+      createdBy: template-odyc3
+    name: odyc3-ws
+  spec:
+    host: odyc3-qualif.kmt.orange-labs.fr
+    path: /api
+    port:
+      targetPort: 8080-tcp
+    to:
+      kind: Service
+      name: odyc3-ws
+  status:
+    ingress:
+    - conditions:
+      - lastTransitionTime: 2016-10-14T12:56:48Z
+        status: "True"
+        type: Admitted
+      host: odyc3-qualif.kmt.orange-labs.fr
+      routerName: router

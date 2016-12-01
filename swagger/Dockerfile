@@ -1,5 +1,12 @@
-FROM google/nodejs
-MAINTAINER Marc Despland <marc.despland@art122-5.net>
+FROM node
+MAINTAINER Marc Despland <marc.despland@orange.com>
 ENV NODE_ENV development
 RUN npm install -g swagger
-ENTRYPOINT /bin/bash
+RUN npm config set no-bin-links true
+RUN npm config set bin-links false
+WORKDIR /app
+RUN adduser --uid 1000 --disabled-password swagger
+USER 1000
+CMD /bin/bash
+EXPOSE 8080
+EXPOSE 9000

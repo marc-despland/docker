@@ -1,6 +1,12 @@
-FROM google/nodejs
-MAINTAINER Marc Despland <marc.despland@art122-5.net>
+FROM node
+MAINTAINER Marc Despland <marc.despland@orange.com>
 ENV NODE_ENV development
 RUN npm install -g angular-cli 
 RUN npm install -g typings
-ENTRYPOINT /bin/bash
+RUN npm config set bin-links false
+RUN adduser --uid 1000 --disabled-password angular
+RUN mkdir /app; chown angular:angular /app
+USER 1000
+WORKDIR /app
+CMD /bin/bash
+EXPOSE 8080
