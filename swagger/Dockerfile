@@ -6,7 +6,9 @@ RUN npm config set no-bin-links true
 RUN npm config set bin-links false
 WORKDIR /app
 #RUN adduser --uid 1000 --disabled-password swagger
+COPY help.sh /
+RUN chmod a=rx /help.sh
 USER 1000
-CMD /bin/bash
+CMD /help.sh
 EXPOSE 8080
 EXPOSE 9000
