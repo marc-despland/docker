@@ -7,7 +7,9 @@ RUN npm install -g typings
 RUN npm config set bin-links false
 #RUN adduser --uid 1000 --disabled-password angular
 RUN mkdir /app; chown 1000:1000 /app
+COPY help.sh /
+RUN chmod a=rx /help.sh
 USER 1000
 WORKDIR /app
-CMD /bin/bash
+CMD /help.sh
 EXPOSE 8080
