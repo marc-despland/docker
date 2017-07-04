@@ -8,4 +8,6 @@ echo docker run -v \$PWD:/app:Z --rm tools/angular-cli ng new PROJECT-NAME
 echo ==============================================================================
 echo == Running the project
 echo cd PROJECT-NAME
-echo docker run -v \$PWD:/app:Z --rm -it --name PROJECT-NAME tools/angular-cli ng serve
+echo docker run -v \$PWD:/app:Z --rm -it --name PROJECT-NAME  tools/angular-cli npm install
+echo docker run -v \$PWD:/app:Z --rm -it --name PROJECT-NAME  tools/angular-cli ng serve
+echo docker exec -it PROJECT-NAME /bin/bash
