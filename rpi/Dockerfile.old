@@ -1,0 +1,12 @@
+FROM sdthirlwall/raspberry-pi-cross-compiler
+
+#WiringPi installation
+RUN cd /opt;git clone git://git.drogon.net/wiringPi; cd wiringPi; ./build
+
+#http_parser installation
+RUN cd /opt; git clone https://github.com/nodejs/http-parser.git; cd http-parser; make; make install
+
+RUN install-raspbian --update libcurl4-openssl-dev
+RUN install-raspbian libstdc++-4.9-dev
+
+RUN ldconfig
