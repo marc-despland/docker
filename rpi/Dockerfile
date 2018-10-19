@@ -10,4 +10,7 @@ RUN cd /opt;git clone git://git.drogon.net/wiringPi; cd wiringPi; ./build
 #http_parser installation
 RUN cd /opt; git clone https://github.com/nodejs/http-parser.git; cd http-parser; make; make install
 
+RUN apt-get -y install libssl-dev
 RUN ldconfig
+
+WORKDIR /build
