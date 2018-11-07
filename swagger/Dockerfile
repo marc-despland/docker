@@ -8,6 +8,7 @@ WORKDIR /app
 #RUN adduser --uid 1000 --disabled-password swagger
 COPY help.sh /
 RUN chmod a=rx /help.sh
+RUN chmod -R a+r /usr/local/lib/node_modules
 USER 1000
 CMD /help.sh
 EXPOSE 8080
